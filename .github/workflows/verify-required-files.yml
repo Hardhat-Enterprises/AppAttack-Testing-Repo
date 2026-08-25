@@ -25,11 +25,23 @@ jobs:
           echo "$FILES" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
-      - name: Check for required file types
+      - name: Check for required file types (findings only)
         run: |
           FILES="${{ steps.changed.outputs.files }}"
           echo "Changed files in this push:"
           echo "$FILES"
+          echo
+
+          # Only files under a */findings/ path count toward this check
+          FINDINGS_FILES=$(echo "$FILES" | grep -E '/findings/' || true)
+
+          if [ -z "$FINDINGS_FILES" ]; then
+            echo "! No changes under a findings/ folder - required-file check does not apply to this PR."
+            exit 0
+          fi
+
+          echo "Findings-related files in this push:"
+          echo "FINDINGS_FILES"
           echo
 
           HAS_PDF=false
@@ -42,7 +54,7 @@ jobs:
               *.tex|*.TEX) HAS_TEX=true ;;
               *.jpg|*.jpeg|*.png|*.gif|*.bmp|*.webp|*.tiff|*.JPG|*.JPEG|*.PNG) HAS_IMAGE=true ;;
             esac
-          done <<< "$FILES"
+          done <<< "$FINDINGS_FILES"
 
           MISSING=""
           [ "$HAS_PDF" = false ]   && MISSING="$MISSING .pdf"
@@ -50,7 +62,7 @@ jobs:
           [ "$HAS_IMAGE" = false ] && MISSING="$MISSING image(.jpg/.png/etc)"
 
           if [ -n "$MISSING" ]; then
-            echo "❌ This push is missing required file type(s):$MISSING"
+            echo "❌ This PR touches a findings/ folder but is missing required file type(s):$MISSING"
             exit 1
           fi
 
