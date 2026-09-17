@@ -25,7 +25,8 @@ jobs:
           echo "$FILES" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
-      - name: Check for required file types (findings only)
+      - name: Check for required file types (tex, pdf, image)
+        id: filetypes
         run: |
           FILES="${{ steps.changed.outputs.files }}"
           echo "Changed files in this push:"
@@ -37,11 +38,13 @@ jobs:
 
           if [ -z "$FINDINGS_FILES" ]; then
             echo "! No changes under a findings/ folder - required-file check does not apply to this PR."
+            echo "applied=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          echo "applied=true" >> "$GITHUB_OUTPUT"
 
           echo "Findings-related files in this push:"
-          echo "FINDINGS_FILES"
+          echo "$FINDINGS_FILES"
           echo
 
           HAS_PDF=false
@@ -52,7 +55,7 @@ jobs:
             case "$f" in
               *.pdf|*.PDF) HAS_PDF=true ;;
               *.tex|*.TEX) HAS_TEX=true ;;
-              *.jpg|*.jpeg|*.png|*.gif|*.bmp|*.webp|*.tiff|*.JPG|*.JPEG|*.PNG) HAS_IMAGE=true ;;
+              *.jpg|*.jpeg|*.png|*.gif|*.bmp|*.webp|*.tiff|*.JPG|*.JPEG|*.PNG|*.GIF|*.BMP|*.WEBP|*.TIFF) HAS_IMAGE=true ;;
             esac
           done <<< "$FINDINGS_FILES"
 
@@ -67,3 +70,66 @@ jobs:
           fi
 
           echo "✅ All required file types present (.pdf, .tex, and at least one image)."
+
+      - name: Check that images referenced in .tex are included in this PR
+        if: steps.filetypes.outputs.applied == 'true' 
+        run: |
+          FILES="${{ steps.changed.outputs.files }}"
+          FINDINGS_FILES=$(echo "$FILES" | grep -E '/findings/' || true)
+          TEX_FILES=$(echo "$FINDINGS_FILES" | grep -E '\.tex$|\.TEX$' || true)
+ 
+          if [ -z "$TEX_FILES" ]; then
+            echo "No .tex files changed under findings/ - skipping reference check."
+            exit 0
+          fi
+ 
+          MISSING_REFS=""
+ 
+          while IFS= read -r TEXFILE; do
+            [ -z "$TEXFILE" ] && continue
+            [ -f "$TEXFILE" ] || continue
+ 
+            TEXDIR=$(dirname "$TEXFILE")
+            echo "Scanning $TEXFILE for referenced images..."
+ 
+            # \includegraphics[...]{path}
+            IMG_REFS=$(grep -oE '\\includegraphics(\[[^]]*\])?\{[^}]+\}' "$TEXFILE" \
+              | sed -E 's/\\includegraphics(\[[^]]*\])?\{([^}]+)\}/\2/' || true)
+              | sed -E 's/\\([_#%&~^{}$])/\1/g' || true) #special character escape character check and remove
+ 
+            for REF in $IMG_REFS; do
+              # Candidate paths: relative to the .tex file's folder (e.g. images/foo.png), and repo-root relative as a fallback
+              CANDIDATES=("$TEXDIR/$REF" "$REF")
+ 
+              # LaTeX \includegraphics allows omitting the extension, so we try common image extensions too
+              if [[ "$REF" != *.* ]]; then #check does it have an extension - this wont fire if a foldername has a dot in it, but highly unlikely
+                for EXT in png jpg jpeg gif bmp webp tiff PNG JPG JPEG GIF BMP WEBP TIFF; do # if it does not, add the extension to it and add to candidates array
+                  CANDIDATES+=("$TEXDIR/$REF.$EXT" "$REF.$EXT")
+                done
+              fi
+ 
+              # Check the actual checked-out branch for image file in candidates array. If an image was already committed earlier in the branch (or inherited from main) counts as present
+              FOUND=""
+              for CAND in "${CANDIDATES[@]}"; do
+                CAND="${CAND#./}"
+                if [ -f "$CAND" ]; then
+                  FOUND="$CAND"
+                  break
+                fi
+              done
+ 
+              if [ -z "$FOUND" ]; then  #If not found, then an image has been referenced that was not uploaded or pre-existing in the PR branch
+                MISSING_REFS="$MISSING_REFS\n  - $TEXFILE references image '$REF' which does not exist anywhere in the branch"
+              fi
+            done
+ 
+          done <<< "$TEX_FILES"
+ 
+          if [ -n "$MISSING_REFS" ]; then
+            echo "❌ Found images referenced in .tex files that are missing from the branch:"
+            echo -e "$MISSING_REFS"
+            exit 1
+          fi
+ 
+          echo "✅ All images referenced in .tex files exist in the branch."
+
