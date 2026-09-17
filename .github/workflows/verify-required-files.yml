@@ -41,9 +41,10 @@ jobs:
             echo "applied=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          echo "applied=true" >> "$GITHUB_OUTPUT"
 
           echo "Findings-related files in this push:"
-          echo "FINDINGS_FILES"
+          echo "$FINDINGS_FILES"
           echo
 
           HAS_PDF=false
@@ -71,7 +72,7 @@ jobs:
           echo "✅ All required file types present (.pdf, .tex, and at least one image)."
 
       - name: Check that images referenced in .tex are included in this PR
-        if: steps.filetypes.outputs.applies == 'true' 
+        if: steps.filetypes.outputs.applied == 'true' 
         run: |
           FILES="${{ steps.changed.outputs.files }}"
           FINDINGS_FILES=$(echo "$FILES" | grep -E '/findings/' || true)
