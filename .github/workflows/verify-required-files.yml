@@ -85,7 +85,7 @@ jobs:
           echo "✅ All required file types present (.pdf, .tex, and at least one image)."
 
       - name: Check that images referenced in .tex are included in this PR
-        if: steps.filetypes.outputs.applied == 'true' 
+        if: steps.changed.outputs.applied == 'true' 
         run: |
           FILES="${{ steps.changed.outputs.files }}"
           FINDINGS_FILES=$(echo "$FILES" | grep -E '/findings/' || true)
