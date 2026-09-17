@@ -95,6 +95,7 @@ jobs:
             # \includegraphics[...]{path}
             IMG_REFS=$(grep -oE '\\includegraphics(\[[^]]*\])?\{[^}]+\}' "$TEXFILE" \
               | sed -E 's/\\includegraphics(\[[^]]*\])?\{([^}]+)\}/\2/' || true)
+              | sed -E 's/\\([_#%&~^{}$])/\1/g' || true) #special character escape character check and remove
  
             for REF in $IMG_REFS; do
               # Candidate paths: relative to the .tex file's folder (e.g. images/foo.png), and repo-root relative as a fallback
