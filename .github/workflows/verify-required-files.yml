@@ -25,15 +25,28 @@ jobs:
           echo "$FILES" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
-      - name: Check for required file types (tex, pdf, image)
-        id: filetypes
-        run: |
-          FILES="${{ steps.changed.outputs.files }}"
-          echo "Changed files in this push:"
-          echo "$FILES"
-          echo
-
-          # Only files under a */findings/ path count toward this check
+          # Submission-type files (tex/pdf/image) found ANYWHERE in the diff, regardless of folder
+          SUBMISSION_TYPE_FILES=$(echo "$FILES" | grep -E '\.(tex|TEX|pdf|PDF|jpg|jpeg|png|gif|bmp|webp|tiff|JPG|JPEG|PNG|GIF|BMP|WEBP|TIFF)$' || true)
+ 
+          # Any of those that are NOT under a */findings/ folder are misplaced submissions
+          MISPLACED=""
+          if [ -n "$SUBMISSION_TYPE_FILES" ]; then
+            while IFS= read -r f; do
+              [ -z "$f" ] && continue
+              case "$f" in
+                */findings/*) ;; # correctly placed inside a findings/ folder
+                *) MISPLACED="$MISPLACED\n  - $f" ;;
+              esac
+            done <<< "$SUBMISSION_TYPE_FILES"
+          fi
+ 
+          if [ -n "$MISPLACED" ]; then
+            echo "❌ Submission file(s) (.tex/.pdf/image) found outside a findings/ folder. These must be uploaded inside the project's findings/ folder, not the project root or main:"
+            echo -e "$MISPLACED"
+            exit 1
+          fi
+ 
+          # Only files under a */findings/ path count toward this check and proceed
           FINDINGS_FILES=$(echo "$FILES" | grep -E '/findings/' || true)
 
           if [ -z "$FINDINGS_FILES" ]; then
