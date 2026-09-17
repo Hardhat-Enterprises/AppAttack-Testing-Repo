@@ -94,7 +94,7 @@ jobs:
  
             # \includegraphics[...]{path}
             IMG_REFS=$(grep -oE '\\includegraphics(\[[^]]*\])?\{[^}]+\}' "$TEXFILE" \
-              | sed -E 's/\\includegraphics(\[[^]]*\])?\{([^}]+)\}/\2/' || true)
+              | sed -E 's/\\includegraphics(\[[^]]*\])?\{([^}]+)\}/\2/' \
               | sed -E 's/\\([_#%&~^{}$])/\1/g' || true) #special character escape character check and remove
  
             for REF in $IMG_REFS; do
