@@ -1,0 +1,152 @@
+% ============================================================
+% Change Request Form Template
+% ------------------------------------------------------------
+% Fill in each section below for the change being proposed.
+% Compile to produce the final Change Request Form PDF.
+% ============================================================
+
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\title{Change Request Form}
+\author{}
+\date{}
+
+\begin{document}
+
+\begin{center}
+    {\LARGE \textbf{Change Request Form}}
+\end{center}
+\vspace{1em}
+
+% ============================================================
+% 1. CHANGE IDENTIFICATION
+% ============================================================
+\section*{1. Change Identification}
+
+\begin{longtable}{|p{4.5cm}|p{9.5cm}|}
+\hline
+\textbf{Field} & \textbf{Detail} \\
+\hline
+Change Request ID & REPLACE (e.g.\ CR-2026-XX) \\
+\hline
+Title & REPLACE WITH SHORT TITLE OF CHANGE \\
+\hline
+Date Submitted & REPLACE \\
+\hline
+Requested By & REPLACE \\
+\hline
+Repository & REPLACE (name / URL) \\
+\hline
+Target Branch & REPLACE (e.g.\ \texttt{main}) \\
+\hline
+Change Type & REPLACE (e.g.\ New automation, Configuration change, Bug fix) \\
+\hline
+Priority & REPLACE (Standard / High / Low) \\
+\hline
+Dependency & REPLACE (any other CR this depends on, or ``None'') \\
+\hline
+\end{longtable}
+
+% ============================================================
+% 2. SUMMARY OF CHANGE
+% ============================================================
+\section*{2. Summary of Change}
+
+REPLACE: One or two sentences summarizing what is being changed.
+
+% ============================================================
+% 3. DESCRIPTION / WHAT THIS CHANGE DOES
+% ============================================================
+\section*{3. Description / What This Change Does}
+
+REPLACE: Describe in detail what the change consists of. Use a list if there are multiple parts.
+
+\begin{enumerate}[label=\arabic*.]
+    \item REPLACE
+    \item REPLACE
+    \item REPLACE
+\end{enumerate}
+
+% ============================================================
+% 4. REASON / BUSINESS JUSTIFICATION
+% ============================================================
+\section*{4. Reason / Business Justification}
+
+REPLACE: Why is this change needed? What problem does it solve?
+
+% ============================================================
+% 5. AFFECTED SYSTEMS / SCOPE
+% ============================================================
+\section*{5. Affected Systems / Scope}
+
+\begin{itemize}
+    \item REPLACE: files, branches, workflows, or systems affected
+    \item REPLACE: what is explicitly \emph{not} affected
+\end{itemize}
+
+% ============================================================
+% 6. RISK ASSESSMENT
+% ============================================================
+\section*{6. Risk Assessment}
+
+\begin{longtable}{|p{4cm}|p{2cm}|p{2cm}|p{5.5cm}|}
+\hline
+\textbf{Risk} & \textbf{Likelihood} & \textbf{Impact} & \textbf{Mitigation} \\
+\hline
+REPLACE & Low/Med/High & Low/Med/High & REPLACE \\
+\hline
+REPLACE & Low/Med/High & Low/Med/High & REPLACE \\
+\hline
+\end{longtable}
+
+\noindent \textbf{Overall risk:} REPLACE (Low / Medium / High), with a one-line rationale.
+
+% ============================================================
+% 7. ROLLBACK PLAN
+% ============================================================
+\section*{7. Rollback Plan}
+
+REPLACE: Steps to revert this change if needed, and any risk associated with rolling back.
+
+\begin{enumerate}[label=\arabic*.]
+    \item REPLACE
+    \item REPLACE
+\end{enumerate}
+
+% ============================================================
+% 8. IMPLEMENTATION & TESTING PLAN
+% ============================================================
+\section*{8. Implementation \& Testing Plan}
+
+REPLACE: Steps to implement the change and how it will be verified.
+
+\begin{enumerate}[label=\arabic*.]
+    \item REPLACE
+    \item REPLACE
+    \item REPLACE
+\end{enumerate}
+
+% ============================================================
+% 9. APPROVAL
+% ============================================================
+\section*{9. Approval}
+
+\begin{longtable}{|p{4cm}|p{3.5cm}|p{4cm}|p{2.5cm}|}
+\hline
+\textbf{Role} & \textbf{Name} & \textbf{Signature / Approval} & \textbf{Date} \\
+\hline
+Requestor & & & \\
+\hline
+Reviewer / Approver & & & \\
+\hline
+Repository Admin (implementer) & & & \\
+\hline
+\end{longtable}
+
+\end{document}
