@@ -1,0 +1,153 @@
+\documentclass[12pt]{article}
+
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{titlesec}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{hyperref}
+
+% Define custom colours
+\definecolor{headerblue}{RGB}{30,60,120}
+\definecolor{veryminor}{RGB}{0,130,0}
+\definecolor{minor}{RGB}{90,140,0}
+\definecolor{significant}{RGB}{180,140,0}
+\definecolor{major}{RGB}{200,100,0}
+\definecolor{severe}{RGB}{180,0,0}
+\definecolor{rare}{RGB}{0,130,0}
+\definecolor{unlikely}{RGB}{90,140,0}
+\definecolor{moderate}{RGB}{180,140,0}
+\definecolor{high}{RGB}{200,100,0}
+\definecolor{certain}{RGB}{180,0,0}
+
+% Section styling
+\titleformat{\section}
+  {\large\bfseries\color{headerblue}}
+  {}{0em}{}
+\setlength{\parindent}{0pt}
+
+\title{Authentication Endpoint: User Enumeration and Missing Rate Limiting}
+\author{Meg Maroni}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section*{Assessment Details}
+
+\begin{tabular}{|p{5cm}|p{7.5cm}|}
+\hline
+Name & Meg Maroni \\ \hline
+Email & \href{mailto:s221193238@deakin.edu.au}{s221193238@deakin.edu.au} \\ \hline
+Team & AppAttack PenTesting \\ \hline
+Role & Junior Lead \\ \hline
+Project & EVAT \\ \hline
+Quality Assurance &  Andrew Udawela\\ \hline
+Was this Finding Successful? & Yes \\ \hline
+Is this a Re-tested Finding? & No \\ \hline
+\end{tabular}
+
+\section*{Impact Values}
+
+\begin{longtable}{|p{3cm}|p{12cm}|}
+\hline
+\textbf{\textcolor{veryminor}{Very Minor}} & Risk that holds little to no impact. Will not cause damage and regular activity can continue. \\ \hline
+\textbf{\textcolor{minor}{Minor}} & \textcolor{minor}{Risk that holds minor impact. Can cause some damage but not enough to significantly affect operations.} \\ \hline
+\textbf{\textcolor{significant}{Significant}} & Risk that causes noticeable disruption and may impede regular activity. \\ \hline
+\textbf{\textcolor{major}{Major}} & Risk that significantly impacts operations and prevents the system from running normally. \\ \hline
+\textbf{\textcolor{severe}{Severe}} & Risk that causes critical damage and may stop activity entirely. \\ \hline
+\end{longtable}
+
+\section*{Likelihood}
+
+\begin{longtable}{|p{3cm}|p{12cm}|}
+\hline
+\textbf{\textcolor{rare}{Rare}} & Event may occur only in exceptional circumstances. \\ \hline
+\textbf{\textcolor{unlikely}{Unlikely}} & Event could occur occasionally. \\ \hline
+\textbf{\textcolor{moderate}{Moderate}} & \textcolor{moderate}{Event may occur under certain conditions.} \\ \hline
+\textbf{\textcolor{high}{High}} & Event is likely to occur often. \\ \hline
+\textbf{\textcolor{certain}{Certain}} & Event is occurring now or is expected to occur frequently. \\ \hline
+\end{longtable}
+
+\section*{Finding Details}
+
+\subsection*{Finding Name: User Enumeration via Verbose Authentication Error Messages}
+
+\subsubsection*{Description}
+The login endpoint returns distinct, explicit error messages depending on whether a submitted email address corresponds to a registered account. When an existing account is submitted with an incorrect password, the API responds with a message confirming the account exists (e.g. \textit{"Authentication failed: Invalid password for email = [email.here]"}). When a non-existent email is submitted, the API instead responds with a message explicitly stating the account does not exist (e.g. \textit{"Authentication failed: The account with email = [email.here] does not exist"}). These two response bodies also differ in length (83 bytes vs. 118 bytes in testing), providing a second, independently detectable signal even if the message text were later obscured.
+
+This finding is closely related to a separate finding submitted by another team member, included separately within this report and is referenced here only for context, which confirms that the same \texttt{/api/auth/login} endpoint applies no rate limiting, throttling, or account lockout even after 100 consecutive failed attempts. 
+
+\subsubsection*{Risk}
+An attacker in possession of a list of potential email addresses (e.g. sourced from public breach data, a company staff directory, or scraped contact lists) can submit each address to the login endpoint and, purely from the response message and/or response length, determine with certainty which addresses correspond to registered accounts on this platform, without needing to guess a password.
+
+This enumeration finding compounds directly with the missing rate limiting reported, which allows the enumeration attempts to be run at a high volume without interruption, and the resulting list of confirmed valid accounts could then be fed into an unrestricted chain of password-guessing attempts against the same endpoint. Together, the two findings significantly reduce the effort required for an attacker to identify real users and subsequently compromise their accounts via brute-force or credential-stuffing attacks. The two findings should be considered jointly when assessing overall risk to this endpoint, as this increases the severity.
+
+Independent of the rate-limiting issue, the enumeration signal itself also enables:
+\begin{itemize}
+    \item Targeted phishing campaigns against users known to hold an account on this platform.
+\end{itemize}
+
+\subsubsection*{Affected Assets}
+\begin{itemize}
+    \item EVAT WebApp: Authentication API (backend, Express/Node.js service)
+    \item User account records exposed via the authentication response messages
+\end{itemize}
+
+\subsubsection*{Affected Path}
+\texttt{POST /api/auth/login} (backend service, \texttt{http://localhost:8080})
+
+\subsubsection*{Evidence}
+
+\vspace{0.5em}
+
+The following request/response pair was captured in Burp Suite when submitting a known, existing account email with an incorrect password:
+
+\begin{verbatim}
+HTTP/1.1 401 Unauthorized
+Content-Type: application/json; charset=utf-8
+Content-Length: 83
+
+{"message":"Authentication failed: Invalid password for email = [Test1@gmail.com]"}
+\end{verbatim}
+
+\begin{figure}[H]
+\caption{Utilising the known user account (Test1@gmail.com) with an incorrect password to monitor server response.}
+\end{figure}
+\begin{figure}[H]
+\caption{Burp Suite Repeater response for a known, registered account. The server explicitly confirms the account exists.}
+\end{figure}
+
+\vspace{0.5em}
+
+The same request was then repeated using an email address that does not correspond to any registered account:
+
+\begin{verbatim}
+HTTP/1.1 401 Unauthorized
+Content-Type: application/json; charset=utf-8
+Content-Length: 118
+
+{"message":"Authentication failed: The account with email = 
+[definately_not_a_real_email_1@gmail.com] does not exist"}
+\end{verbatim}
+
+\begin{figure}[H]
+\caption{Utilising a non-registered account (definately\_not\_a\_real\_email\_1@gmail.com) to monitor server response.}
+\end{figure}
+\begin{figure}[H]
+\caption{Burp Suite Repeater response for a non-existent account. The server explicitly confirms the account does not exist, and the response length differs from the known-account case (118 bytes vs. 83 bytes).}
+\end{figure}
+
+\vspace{0.5em}
+
+\subsubsection*{Remediation Advice}
+\begin{itemize}
+    \item Return a single, generic error message for all authentication failures on both the UI and server response, regardless of whether the cause was an invalid email or an invalid password (e.g. \textit{"Invalid email or password"}), so the two cases cannot be distinguished.
+    \item Ensure the response time and response body length are equivalent for both the "account does not exist" and "incorrect password" cases, to remove timing- and length-based side channels in addition to the message text.
+    \item Apply the same generic-error principle to the registration endpoint and any password-reset/"forgot password" flow, as these are common alternative locations for the same class of enumeration vulnerability.
+    \item Rate limiting and account lockout controls for this endpoint are addressed in the separate finding \textit{"Missing Rate Limiting on Login Endpoint Allows Unlimited Password Guessing"} (Shaharyar Nadeem); implementing both sets of remediations together is recommended, since either control alone leaves the other risk unmitigated.
+\end{itemize}
+\end{document}
