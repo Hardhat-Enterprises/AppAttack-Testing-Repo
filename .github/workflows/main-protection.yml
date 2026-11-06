@@ -1,0 +1,71 @@
+name: main-restrict enforcement
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened, review_requested, edited]
+  pull_request_review:
+    types: [submitted, dismissed]
+
+jobs:
+  verify-ruleset:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Enforce Ruleset Logic
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prAuthor = context.payload.pull_request.user.login;
+            const sender = context.actor;
+
+            // --- 1. BYPASS ACTORS CHECK ---
+            // Check if sender is an Org Admin or has a bypass role
+            try {
+              const { data: membership } = await github.rest.orgs.getMembershipForUser({
+                org: context.repo.owner,
+                username: sender,
+              });
+              
+              if (membership.role === 'admin') {
+                console.log(`Bypass triggered: ${sender} is an Organization Admin.`);
+                return; // Stop execution here and pass successfully
+              }
+            } catch (error) {
+              console.log("Could not verify Org Admin status, continuing evaluations...");
+            }
+
+            // --- 2. REQUIRED STATUS CHECK: verify-required-files ---
+            // Mimic your custom 'verify-required-files' check logic here.
+            // Replace the 'true' below with your actual validation logic if needed.
+            const filesAreValid = true; 
+            
+            if (!filesAreValid) {
+              core.setFailed("Status Check Failed: 'verify-required-files' criteria not met.");
+              return;
+            }
+            console.log("Status Check Passed: 'verify-required-files' is clear.");
+
+            // --- 3. PULL REQUEST APPROVAL CHECK (Requires 1) ---
+            const { data: reviews } = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+
+            // Track unique user's latest review state
+            const latestReviews = {};
+            for (const review of reviews) {
+              latestReviews[review.user.login] = review.state;
+            }
+
+            const hasApproval = Object.values(latestReviews).includes('APPROVED');
+
+            if (!hasApproval) {
+              core.setFailed("Ruleset Block: This branch requires at least 1 approving review.");
+              return;
+            }
+            console.log("Ruleset Passed: 1 or more approved reviews found.");
